@@ -37,7 +37,7 @@
 
 ;prodotto interno
 (defun innerprod (a b)
-    (if (null a)
+    (if (or (null a) (null b))
         0
         (+ (* (car a) (car b))
               (innerprod (cdr a) (cdr b)))))
@@ -50,15 +50,17 @@
 
 ;somma
 (defun vsum (a b)
-    (if (not (null a))
+    (if (and (not (null a)) (not (null b)))
         (append (list (+ (car a) (car b)))
-            (vsum (cdr a) (cdr b)))))
+            (vsum (cdr a) (cdr b)))
+        (or a b)))
 
 ;differenza
 (defun vsub (a b)
-    (if (not (null a))
+    (if (and (not (null a)) (not (null b)))
         (append (list (- (car a) (car b)))
-            (vsub (cdr a) (cdr b)))))
+            (vsub (cdr a) (cdr b)))
+        (or a b)))
 
 ;distanza
 (defun distance (a b)
@@ -98,26 +100,24 @@
 (defun partition (o c)
     (if (not (null o))
         (append 
-            (append 
-                (list (choose_centroid (distances (car o) c) c)) 
-                (list (car o)))
+            (list (cons 
+                (choose_centroid (distances (car o) c) c)
+                (list (car o))))
             (partition (cdr o) c))))
 
 ;crea il cluster (la lista) con tutti gli elementi vicini al centroide 'c'
 ; c - centroide
-; l - lista generata dal partition (c1->vx, c1->vy, c3->vz, c2->vw, ..., 
-;           cn->vxn)
+; l - lista generata dal partition
 (defun splitting (c l)
     (if (not (null l))
-        (append (if (equal c (car l))
-            (list (second l)))
+        (append (if (equal c (car (car l)))
+            (list (second (car l))))
             (splitting c 
-                (cdr (remove (second l) l))))))
+                (cdr l)))))
 
 ;converte la lista centroide+vettore in cluster
 ; c - lista centroidi
-; l - lista generata dal partition (c1->vx, c1->vy, c3->vz, c2->vw, ..., 
-;           cn->vxn)
+; l - lista generata dal partition
 (defun split_item (c l)
     (if (not (null c))
         (append (list (splitting (car c) l))
@@ -125,7 +125,7 @@
 
 ;calcolo centroide c->cluster
 (defun compute_centroid (n c)
-    (if (not(null c))
+    (if (not (null c))
         (if (= (list-length c) 1)
             (ldiv (car c) n)
             (compute_centroid (+ n 1) 
@@ -141,7 +141,7 @@
 ; cl - cluster
 (defun centroid (cl)
     (if (not (null cl))
-        (append (list (compute_centroid 0 (car cl)))
+        (append (list (compute_centroid 1 (car cl)))
             (centroid (cdr cl)))))
 
 ;centroidi ottimali per i cluster
@@ -154,7 +154,7 @@
             (if (not (equal nce ce))
                 ; altrimenti computo ancora
                 (compute_cluster ob nce)
-                (print ncl)))))
+                ncl))))
 
 ;km
 ; ob - observations
