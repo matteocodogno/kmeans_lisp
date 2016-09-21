@@ -25,11 +25,11 @@
             (lexp (cdr a) k))))
 
 ; cambia l'n-esimo elemento di una lista
-(defun set-nth (list n val)
+(defun set-nth (l n val)
     (if (> n 0)
-        (cons (car list)
-            (set-nth (cdr list) (1- n) val))
-        (cons val (cdr list))))
+        (cons (car l)
+            (set-nth (cdr l) (1- n) val))
+        (cons val (cdr l))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                                   VECTOR                                     ;
@@ -63,44 +63,61 @@
 ;distanza
 (defun distance (a b)
     (sqrt (apply '+ (lexp (vsub a b) 2))))
-;(apply '+ v3) --> somma di una lista
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;                                  KMEANS                                      ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;init - metodo forgy
+; a - lista vettori
+; k - numero centroidi
 (defun forgy (a k)
     (if (not (zerop k))
         (progn
-            (setf e (nth (random (list-length a)) a))
-            (append (list e)
-                (forgy (remove e a) (- k 1))))))
+            (let ( (e (nth (random (list-length a)) a)) )
+                (append (list e)
+                    (forgy (remove e a) (- k 1)))))))
 
 ;calcolo distanze di un punto dai centroidi
+; v - vettore / observation
+; l - lista centroidi
 (defun distances (v l)
     (if (not (null l))
         (append (list (distance v (car l)))
             (distances v (cdr l)))))
 
 ;scelta del centroide più vicino
+; d - lista distanze
+; c - lista centroidi
 (defun choose_centroid (d c)
     (nth (position (reduce #'min d) d) c))
 
 ;suddivisione delle osservazioni attorno ai centroidi a loro più vicini
+; o - lista vettori / observation
+; c - lista centroidi
 (defun partition (o c)
     (if (not (null o))
-        (append (append (list (choose_centroid (distances (car o) c) c)) (list (car o)))
+        (append 
+            (append 
+                (list (choose_centroid (distances (car o) c) c)) 
+                (list (car o)))
             (partition (cdr o) c))))
 
-;crea il cluster con tutti gli elementi vicini al centroide 'c'
+;crea il cluster (la lista) con tutti gli elementi vicini al centroide 'c'
+; c - centroide
+; l - lista generata dal partition (c1->vx, c1->vy, c3->vz, c2->vw, ..., 
+;           cn->vxn)
 (defun splitting (c l)
     (if (not (null l))
         (append (if (equal c (car l))
             (list (second l)))
-            (splitting c (cdr (remove (second l) l))))))
+            (splitting c 
+                (cdr (remove (second l) l))))))
 
 ;converte la lista centroide+vettore in cluster
+; c - lista centroidi
+; l - lista generata dal partition (c1->vx, c1->vy, c3->vz, c2->vw, ..., 
+;           cn->vxn)
 (defun split_item (c l)
     (if (not (null c))
         (append (list (splitting (car c) l))
@@ -111,23 +128,38 @@
     (if (not(null c))
         (if (= (list-length c) 1)
             (ldiv (car c) n)
-            (compute_centroid (+ n 1) (remove (second c) (set-nth c 0 (vsum (car c) (second c))))))))
+            (compute_centroid (+ n 1) 
+                (remove 
+                    ; rimuove v[1]
+                    (second c)
+                    ; mette la somma dei 2 vettori in v[0]
+                    (set-nth c 0
+                        ; somma v[0] con v[1]
+                        (vsum (car c) (second c))))))))
 
 ;calcolo del centroide per ogni cluster
+; cl - cluster
 (defun centroid (cl)
     (if (not (null cl))
         (append (list (compute_centroid 0 (car cl)))
             (centroid (cdr cl)))))
 
 ;centroidi ottimali per i cluster
+; ob - observations
+; ce - lista centroidi
 (defun compute_cluster (ob ce)
-    (setf ncl (split_item ce (partition ob ce)))
-    (setf nce (centroid ncl))
-    (if (not (equal nce ce))
-        (compute_cluster ob nce)
-        (print ncl)))
+    (let ( (ncl (split_item ce (partition ob ce))) )
+        (let ( (nce (centroid ncl)) )
+            ; se il nuovo centroide è uguale al vecchio allora ho finito
+            (if (not (equal nce ce))
+                ; altrimenti computo ancora
+                (compute_cluster ob nce)
+                (print ncl)))))
 
 ;km
+; ob - observations
+; k - numero cluster
 (defun km (ob k)
     (if (> (list-length ob) k)
-            (compute_cluster ob (forgy ob k))))
+            (compute_cluster ob (forgy ob k))
+            (error "Cluster number is greater than observations")))
